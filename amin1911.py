@@ -5,7 +5,11 @@ from openai import OpenAI
 import asyncio
 import random
 
-ai_token='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'
+import torch
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import threading
+
+# ai_token='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'
 bot_token = '8429360617:AAEq7tbtVLbQ2P7Bx92vKW8-4gcnIW-mBGs'
 
 logging.basicConfig( format='%(asctime)s - %(levelname)s - %(message)s',
@@ -13,6 +17,107 @@ logging.basicConfig( format='%(asctime)s - %(levelname)s - %(message)s',
 )
 
 logger = logging.getLogger(__name__)
+
+
+class RuGPT3Bot:
+    def __init__(self):
+        self.model = None
+        self.tokenizer = None
+        self.model_loaded = False
+        self.load_model_async()
+
+    def load_model_async(self):
+        """Асинхронная загрузка модели в отдельном потоке"""
+
+        def load_in_thread():
+            try:
+                logger.info("🔄 Загружаю RuGPT-3 модель...")
+
+                # Модель RuGPT-3 от SberAI
+                model_name = "sberbank-ai/rugpt3large_based_on_gpt2"
+
+                # Загружаем токенайзер и модель
+                self.tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+                self.model = GPT2LMHeadModel.from_pretrained(model_name)
+
+                # Добавляем специальные токены для русского языка
+                self.tokenizer.add_special_tokens({
+                    'pad_token': '[PAD]',
+                    'eos_token': '</s>',
+                    'bos_token': '<s>'
+                })
+
+                self.model_loaded = True
+                logger.info("✅ RuGPT-3 модель успешно загружена!")
+
+            except Exception as e:
+                logger.error(f"❌ Ошибка загрузки модели: {e}")
+                self.model_loaded = False
+
+        # Запускаем загрузку в отдельном потоке
+        thread = threading.Thread(target=load_in_thread)
+        thread.daemon = True
+        thread.start()
+
+    async def generate_response(self, prompt):
+        """Генерация ответа с помощью RuGPT-3"""
+        if not self.model_loaded:
+            return "🔄 Модель еще загружается... Попробуйте через минуту."
+
+        try:
+            # Подготавливаем промпт
+            full_prompt = f"<s>{prompt}</s>"
+
+            # Токенизируем входной текст
+            inputs = self.tokenizer.encode(full_prompt, return_tensors="pt")
+
+            # Генерируем ответ
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    inputs,
+                    max_length=len(inputs[0]) + 100,  # Ограничиваем длину
+                    num_return_sequences=1,
+                    temperature=0.9,
+                    do_sample=True,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.2
+                )
+
+            # Декодируем ответ
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+            # Убираем оригинальный промпт из ответа
+            if response.startswith(prompt):
+                response = response[len(prompt):].strip()
+
+            # Очищаем ответ
+            response = self.clean_response(response)
+
+            return response if response else "Не удалось сгенерировать ответ."
+
+        except Exception as e:
+            logger.error(f"Ошибка генерации: {e}")
+            return "Извините, произошла ошибка при генерации ответа."
+
+    def clean_response(self, text):
+        """Очистка сгенерированного текста"""
+        # Убираем лишние символы и обрезаем до точки
+        text = text.replace('</s>', '').replace('<s>', '').strip()
+
+        # Обрезаем до последней завершенной мысли
+        if '.' in text:
+            text = text[:text.rfind('.') + 1]
+        elif '!' in text:
+            text = text[:text.rfind('!') + 1]
+        elif '?' in text:
+            text = text[:text.rfind('?') + 1]
+
+        return text
+
+
+# Создаем экземпляр бота
+rugpt_bot = RuGPT3Bot()
+
 
 async def generate_resp(prompt, maxretries=5):
     """генерация с экспоненциальной задержкой при ошибках"""
@@ -80,6 +185,16 @@ async def about(update:Update, context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(about_text)
 
 
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Проверка статуса модели"""
+    if rugpt_bot.model_loaded:
+        status_text = "✅ Модель RuGPT-3 загружена и готова к работе!"
+    else:
+        status_text = "🔄 Модель еще загружается... Подождите 1-2 минуты."
+
+    await update.message.reply_text(status_text)
+
+
 async def reset_command(update:Update, context:ContextTypes.DEFAULT_TYPE):
     '''функция сброс диалога'''
     # очищаем историю разговооров
@@ -99,9 +214,9 @@ async def handlemes(update: Update, context:ContextTypes.DEFAULT_TYPE):
     #     await update.message.reply_text("прошу избегать нецензурных выражений")
     #     return
     #
-    # if len(user_text)>100:
-    #     await update.message.reply_text("Сообщение слишком длинное, пожалуйста сократите до 100 символов: ")
-    #     return
+    if len(user_text)>500:
+        await update.message.reply_text("Сообщение слишком длинное, пожалуйста сократите до 500 символов: ")
+        return
 
 
 
