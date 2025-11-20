@@ -4,7 +4,6 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from openai import OpenAI
 import asyncio
 import random
-
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import threading
