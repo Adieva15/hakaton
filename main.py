@@ -1,14 +1,18 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
-import message_handlers
+from message_handlers import *
 import logging
-import config
+from confyg import *
+import asyncio
+import random
+
+from openai import OpenAI
+
 
 def main():
     try:
         logger.info("Запуск бота...")
         application = Application.builder().token(bot_token).build()
-
         application.add_handler(CommandHandler('start', start))
         application.add_handler(CommandHandler('help', help_command))
         application.add_handler(CommandHandler('about', about))

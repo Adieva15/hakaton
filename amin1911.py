@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from openai import OpenAI
 
-ai_token='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'
+ai_token='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'
 
 bot_token = '8429360617:AAEq7tbtVLbQ2P7Bx92vKW8-4gcnIW-mBGs'
 
@@ -21,16 +21,34 @@ async def generate_resp(prompt):
     )
 
     completion = client.chat.completions.create(
-        extra_body={},
-        model="qwen/qwen3-4b:free",
+        model="x-ai/grok-4.1-fast:free",
         messages=[
             {
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+    extra_body={"reasoning": {"enabled": True}}
     )
-    return completion.choices[0].message.content
+    completion = completion.choices[0].message.content
+    messages = [
+        {"role": "user", "content": prompt},
+        {
+            "role": "assistant",
+            "content": completion.content,
+            "reasoning_details": completion.reasoning_details  # Pass back unmodified
+        },
+        {"role": "user", "content": prompt}
+    ]
+
+    # Second API call - model continues reasoning from where it left off
+    response2 = client.chat.completions.create(
+        model="x-ai/grok-4.1-fast:free",
+        messages=messages,
+        extra_body={"reasoning": {"enabled": True}}
+    )
+    return completion
+
 async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
     welcome_text = """      
     Привет! я
