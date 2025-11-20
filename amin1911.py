@@ -67,7 +67,6 @@ async def handlemes(update: Update, context:ContextTypes.DEFAULT_TYPE):
     response = await generate_resp(user_text)
     await update.message.answer(f'{response}')
 
-
 def generation_litresponse(user_text):
     textlower = user_text.lower()
     if any(word in textlower for word in ['привет','здравствуйте','hello']):
