@@ -45,7 +45,10 @@ async def generate_resp(prompt, maxretries=5):
             logger.warning(f'Попытка {attempt+1} {e} не удалась. Повтор через {delay:.1f}')
 
             await asyncio.sleep(delay)
+
+
 async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
+    '''функция старт'''
     welcome_text = """      
     Привет! Я бот с ИИ
     Мои команды:
@@ -58,34 +61,68 @@ async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
      """
     await update.message.reply_text(welcome_text)
 
+    context.user_data['history']=[]
+    context.user_data['user_name']=update.effective_user.first_name
+
+
 async def help_command(update:Update, context:ContextTypes.DEFAULT_TYPE):
-    help_text = """Кнапишите мне и ИИ ответит! Как пользоваться:
-    1. перессказ"""
+    '''функция помощь'''
+    help_text = """Напишите мне и ИИ ответит! Как пользоваться:
+    1. перессказ
+    2. анализ персонажей
+    3. помощь с рецензией
+    """
     await update.message.reply_text(help_text)
 
 async def about(update:Update, context:ContextTypes.DEFAULT_TYPE):
+    '''функция о боте'''
     about_text = """Бот - литературный помощник с искусственным интелектом"""
     await update.message.reply_text(about_text)
 
 
 async def reset_command(update:Update, context:ContextTypes.DEFAULT_TYPE):
+    '''функция сброс диалога'''
     # очищаем историю разговооров
     if 'history' in context.user_data:
         context.user_data['history'] = []
-    await update.message.reply_text('диалог сброшен')
+    await update.message.reply_text('диалог сброшен. я все забыл ')
+
 
 async def handlemes(update: Update, context:ContextTypes.DEFAULT_TYPE):
+    '''обработка текстовых сообщений'''
     user_text = update.message.text
+    user_name = update.effective_user.first_name
+
+    logger.info(f'сообщение от {user_name}: {user_text}')
+
+    # if contains_bad_words(user_text):
+    #     await update.message.reply_text("прошу избегать нецензурных выражений")
+    #     return
+    #
+    # if len(user_text)>100:
+    #     await update.message.reply_text("Сообщение слишком длинное, пожалуйста сократите до 100 символов: ")
+    #     return
+
+
+
     await update.message.chat.send_action(action='typing')
+
     try:
-        bot_response = await generate_resp(user_text)
+        # prompt = context_prompt(user_text, context)
+        if user_text.lower() in ['привет','здравствуй','добрый день', 'добрый вечер', 'доброе утро']:
+            bot_response = f'Привет, {user_name}! Чем могу помочь?'
+        elif user_text.lower() in ['как дела','как ты','как твое здоровье']:
+            bot_response = "У меня отлично! Спасибо, что спросили!"
+        else:
+            bot_response = await generate_resp(user_text)
+
+        # update_conversh(context, user_text, bot_response)
 
         await update.message.reply_text(bot_response)
-
+        logger.info('Ответ успешно отправлен пользователю')
     except Exception as e:
         logger.error(f"Критическая ошибка: {e}")
         await update.message.reply_text("произошла непредвиденная ошибка.")
-
 
 
 def generation_litresponse(user_text):
