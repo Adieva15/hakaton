@@ -6,17 +6,19 @@ async def generate_resp(prompt, maxretries=5):
     """генерация ответа с ии"""
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=ai_token,)
+        api_key=ai_token,
+    )
 
     completion = client.chat.completions.create(
-            model="qwen/qwen3-4b:free",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
+        model="x-ai/grok-4.1-fast:free",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        extra_body={"reasoning": {"enabled": True}}
+    )
 
     completion = completion.choices[0].message.content
     messages = [
@@ -28,6 +30,7 @@ async def generate_resp(prompt, maxretries=5):
         },
         {"role": "user", "content": prompt}
     ]
+
     # Second API call - model continues reasoning from where it left off
     response2 = client.chat.completions.create(
         model="x-ai/grok-4.1-fast:free",

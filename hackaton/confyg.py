@@ -1,3 +1,3 @@
 
-ai_token='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'
+ai_token='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'
 bot_token = '8429360617:AAEq7tbtVLbQ2P7Bx92vKW8-4gcnIW-mBGs'
