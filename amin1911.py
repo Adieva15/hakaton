@@ -8,7 +8,8 @@ import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import threading
 
-# ai_token='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'
+ai_token='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'
+
 bot_token = '8429360617:AAEq7tbtVLbQ2P7Bx92vKW8-4gcnIW-mBGs'
 
 logging.basicConfig( format='%(asctime)s - %(levelname)s - %(message)s',
@@ -125,31 +126,34 @@ async def generate_resp(prompt, maxretries=5):
         api_key=ai_token,
     )
 
-    for attempt in range(maxretries):
-        try:
-            completion = client.chat.completions.create(
-                model="qwen/qwen3-4b:free",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            if attempt == maxretries -1:
-                logger.error(f'все попытки завершились {e}')
-                return "ИЗвините, сервис временно не доступен, попробуйте позже."
+    completion = client.chat.completions.create(
+        model="x-ai/grok-4.1-fast:free",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+    extra_body={"reasoning": {"enabled": True}}
+    )
+    completion = completion.choices[0].message.content
+    messages = [
+        {"role": "user", "content": prompt},
+        {
+            "role": "assistant",
+            "content": completion.content,
+            "reasoning_details": completion.reasoning_details  # Pass back unmodified
+        },
+        {"role": "user", "content": prompt}
+    ]
 
-            base_del= 2**attempt
-            jitter = random.uniform(0.1, 0.5)
-            delay = base_del + jitter
-
-            logger.warning(f'Попытка {attempt+1} {e} не удалась. Повтор через {delay:.1f}')
-
-            await asyncio.sleep(delay)
-
+    # Second API call - model continues reasoning from where it left off
+    response2 = client.chat.completions.create(
+        model="x-ai/grok-4.1-fast:free",
+        messages=messages,
+        extra_body={"reasoning": {"enabled": True}}
+    )
+    return completion
 
 async def start(update: Update, context:ContextTypes.DEFAULT_TYPE):
     '''функция старт'''
