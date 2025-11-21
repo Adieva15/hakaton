@@ -129,3 +129,4 @@ def generation_litresponse(user_text):
         return "Я готов сделать краткий перессказ произведения, пришлите название произведения или книги."
     else:
         return None
+

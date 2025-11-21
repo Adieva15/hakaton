@@ -12,3 +12,4 @@ def contains_bad_words(text: str) -> bool:
     bad_words = ['дурак', 'идиот', 'мудак', 'придурок', 'сволочь']
     normalized = _normalize_text(text)
     return any(bad_word in normalized for bad_word in bad_words)
+
